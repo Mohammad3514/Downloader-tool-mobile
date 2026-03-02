@@ -70,30 +70,74 @@ resolveFfmpeg();
    Helpers
    =========================== */
 
-/* Extra flags to bypass YouTube bot-detection on datacenter IPs (Render, etc.) */
-function getYouTubeBypassArgs(url) {
+/*
+  YouTube client cascade for server/datacenter IPs.
+  These don't require PO tokens and work on cloud servers.
+  Order matters — try most-permissive first.
+*/
+const YT_CLIENTS = [
+    'tv_embedded',   // Smart TV embedded — no PO token needed, reliable
+    'web_creator',   // YouTube Studio client — usually not rate-limited
+    'mweb',          // mobile web — less restricted than desktop web
+    'web_embedded',  // embedded player client
+    'android_vr',    // VR Android client — different quota bucket
+];
+
+function getYouTubeBypassArgs(url, clientIndex = 0) {
     const isYouTube = /youtube\.com|youtu\.be/i.test(url || '');
     if (!isYouTube) return [];
+    const client = YT_CLIENTS[clientIndex] || YT_CLIENTS[0];
     return [
-        // Use Android mobile client — far less restricted than web
-        '--extractor-args', 'youtube:player_client=android,web',
-        // Spoof a real Android browser user-agent
-        '--user-agent', 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-        // Retries
-        '--retries', '3',
-        '--fragment-retries', '3',
-        '--extractor-retries', '3',
-        // Timeouts
+        '--extractor-args', `youtube:player_client=${client}`,
+        '--no-check-certificates',
+        '--retries', '2',
+        '--extractor-retries', '2',
         '--socket-timeout', '30',
+        '--ignore-no-formats-error',
     ];
 }
 
-function getYtDlpArgs(extraArgs = [], url = '') {
+function getYtDlpArgs(extraArgs = [], url = '', clientIndex = 0) {
     const ffmpegArgs = (FFMPEG_PATH && FFMPEG_PATH !== 'ffmpeg')
         ? ['--ffmpeg-location', FFMPEG_PATH]
         : [];
-    const bypassArgs = getYouTubeBypassArgs(url);
+    const bypassArgs = getYouTubeBypassArgs(url, clientIndex);
     return { cmd: PYTHON_CMD, args: ['-m', 'yt_dlp', ...ffmpegArgs, ...bypassArgs, ...extraArgs] };
+}
+
+/* Try multiple YouTube clients in sequence until one works */
+function spawnYtDlp(extraArgs, url) {
+    return new Promise((resolve, reject) => {
+        const isYouTube = /youtube\.com|youtu\.be/i.test(url || '');
+        const maxAttempts = isYouTube ? YT_CLIENTS.length : 1;
+        let attempt = 0;
+
+        function tryNext() {
+            if (attempt >= maxAttempts) {
+                return reject(new Error('All clients failed'));
+            }
+            const { cmd, args } = getYtDlpArgs(extraArgs, url, attempt);
+            const clientName = isYouTube ? YT_CLIENTS[attempt] : 'default';
+            console.log(`\n▶ yt-dlp attempt ${attempt + 1}/${maxAttempts} [client: ${clientName}]`);
+
+            let stdout = '', stderr = '';
+            const proc = spawn(cmd, args);
+            proc.stdout.on('data', d => { stdout += d; });
+            proc.stderr.on('data', d => { stderr += d.toString(); });
+
+            proc.on('error', err => reject(err));
+            proc.on('close', code => {
+                if (code === 0 && stdout.trim()) {
+                    console.log(`✅ Succeeded with client: ${clientName}`);
+                    return resolve({ stdout, stderr });
+                }
+                console.warn(`❌ Client ${clientName} failed (code ${code}):`, stderr.slice(-200));
+                attempt++;
+                tryNext();
+            });
+        }
+        tryNext();
+    });
 }
 
 function getPlatformInfo(url) {
@@ -190,62 +234,73 @@ app.get('/api/check', (req, res) => {
 });
 
 /* ===========================
+   GET /api/debug  — see raw yt-dlp output for a URL
+   =========================== */
+app.get('/api/debug', async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+    try {
+        const { stdout, stderr } = await spawnYtDlp(
+            ['--dump-json', '--no-playlist', url], url
+        );
+        res.json({ success: true, stdoutLength: stdout.length, stderr: stderr.slice(-1000) });
+    } catch (e) {
+        res.json({ success: false, error: e.message });
+    }
+});
+
+/* ===========================
    GET /api/info
    =========================== */
-app.get('/api/info', (req, res) => {
+app.get('/api/info', async (req, res) => {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     const platform = getPlatformInfo(url);
-    const { cmd, args } = getYtDlpArgs(['--dump-json', '--no-playlist', url], url);
 
-    let output = '', errOut = '';
-    const proc = spawn(cmd, args);
-    proc.stdout.on('data', d => { output += d; });
-    proc.stderr.on('data', d => { errOut += d; });
+    let stdout, stderr;
+    try {
+        ({ stdout, stderr } = await spawnYtDlp(['--dump-json', '--no-playlist', url], url));
+    } catch (e) {
+        return res.status(500).json({
+            error: 'Could not fetch video info. YouTube may be blocking this server. Try a non-YouTube link or see /api/debug for details.',
+            details: e.message,
+        });
+    }
 
-    proc.on('close', code => {
-        if (code !== 0) {
-            return res.status(500).json({
-                error: 'Failed to fetch video info. Check the URL and try again.',
-                details: errOut.slice(0, 300)
+    try {
+        const info = JSON.parse(stdout.trim().split('\n')[0]);
+        const allFmts = info.formats || [];
+
+        const seen = new Set();
+        const qualities = [];
+        allFmts
+            .filter(f => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && f.height)
+            .forEach(f => {
+                const label = `${f.height}p`;
+                if (!seen.has(label)) {
+                    seen.add(label);
+                    qualities.push({ formatId: f.format_id, label, height: f.height, ext: f.ext, hasAudio: true, fps: f.fps, filesize: f.filesize || f.filesize_approx || null });
+                }
             });
-        }
-        try {
-            const info = JSON.parse(output.trim().split('\n')[0]);
-            const allFmts = info.formats || [];
 
-            // Combined video+audio (no merge needed)
-            const seen = new Set();
-            const qualities = [];
-            allFmts
-                .filter(f => f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && f.height)
-                .forEach(f => {
-                    const label = `${f.height}p`;
-                    if (!seen.has(label)) {
-                        seen.add(label);
-                        qualities.push({ formatId: f.format_id, label, height: f.height, ext: f.ext, hasAudio: true, fps: f.fps, filesize: f.filesize || f.filesize_approx || null });
-                    }
-                });
+        qualities.sort((a, b) => b.height - a.height);
+        qualities.unshift({ formatId: 'best', label: 'Best Quality (HD)', height: 9999, ext: 'mp4', hasAudio: true, isBest: true });
 
-            qualities.sort((a, b) => b.height - a.height);
-            qualities.unshift({ formatId: 'best', label: 'Best Quality (HD)', height: 9999, ext: 'mp4', hasAudio: true, isBest: true });
-
-            res.json({
-                title: info.title || 'Unknown',
-                thumbnail: info.thumbnail || null,
-                duration: info.duration || null,
-                uploader: info.uploader || info.channel || 'Unknown',
-                viewCount: info.view_count || null,
-                platform: platform.name,
-                qualities,
-                originalUrl: url,
-                ffmpegAvailable: !!FFMPEG_PATH,
-            });
-        } catch (e) {
-            res.status(500).json({ error: 'Failed to parse video info', details: e.message });
-        }
-    });
+        res.json({
+            title: info.title || 'Unknown',
+            thumbnail: info.thumbnail || null,
+            duration: info.duration || null,
+            uploader: info.uploader || info.channel || 'Unknown',
+            viewCount: info.view_count || null,
+            platform: platform.name,
+            qualities,
+            originalUrl: url,
+            ffmpegAvailable: !!FFMPEG_PATH,
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to parse video info', details: e.message });
+    }
 });
 
 /* ===========================
