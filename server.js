@@ -305,16 +305,16 @@ app.get('/api/info', async (req, res) => {
 
 /* ===========================
    GET /api/download
-   Params: url, type(video|audio), format, quality, audioQuality, savePath, title
+   Params: url, type, format, quality, audioQuality, savePath, title
    =========================== */
-app.get('/api/download', (req, res) => {
+app.get('/api/download', async (req, res) => {
     const {
         url,
-        type = 'video',       // video | audio
-        format = 'mp4',       // mp4 | webm | mkv | mp3 | m4a | flac
-        quality = 'best',     // best | 2160 | 1080 | 720 | 480 | 360 | 240
-        audioQuality = '0',   // 0=best, 5≈128k, 9=worst
-        savePath = '',        // local folder to save instead of streaming
+        type = 'video',
+        format = 'mp4',
+        quality = 'best',
+        audioQuality = '0',
+        savePath = '',
         title = 'video',
     } = req.query;
 
@@ -324,14 +324,11 @@ app.get('/api/download', (req, res) => {
     const ext = type === 'audio' ? format : (format || 'mp4');
     const filename = `${safeTitle}.${ext}`;
 
-    // Unique temp ID
+    const saveLocally = savePath && savePath.trim();
     const tempId = `vs_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const tempTemplate = path.join(os.tmpdir(), `${tempId}.%(ext)s`);
 
-    // Determine destination: temp (stream) or local folder
-    const saveLocally = savePath && savePath.trim();
     let finalOutputTemplate;
-
     if (saveLocally) {
         try {
             const dir = savePath.trim();
@@ -344,69 +341,78 @@ app.get('/api/download', (req, res) => {
         finalOutputTemplate = tempTemplate;
     }
 
-    // Build yt-dlp argument list
+    // Build base yt-dlp args (no url, no client flags yet)
     let ytArgs = ['--no-playlist', '--no-part', '--no-mtime'];
-
     if (type === 'audio') {
-        // Audio extraction
-        ytArgs.push('-x');
-        ytArgs.push('--audio-format', format);   // mp3 | m4a | flac | opus | aac
-        ytArgs.push('--audio-quality', audioQuality);
-        ytArgs.push('-f', 'bestaudio/best');
+        ytArgs.push('-x', '--audio-format', format, '--audio-quality', audioQuality, '-f', 'bestaudio/best');
     } else {
-        // Video download
         const fmtStr = buildFormat({ type, format, quality });
-        ytArgs.push('-f', fmtStr);
-        ytArgs.push('--merge-output-format', format === 'webm' ? 'webm' : format === 'mkv' ? 'mkv' : 'mp4');
+        ytArgs.push('-f', fmtStr, '--merge-output-format', format === 'webm' ? 'webm' : format === 'mkv' ? 'mkv' : 'mp4');
     }
-
     ytArgs.push('-o', finalOutputTemplate, url);
 
-    const { cmd, args } = getYtDlpArgs(ytArgs, url);
+    console.log(`\n📥 Download: ${url} | type=${type} format=${format} quality=${quality}`);
 
-    console.log(`\n📥 Download request`);
-    console.log(`   URL: ${url}`);
-    console.log(`   Type: ${type} | Format: ${format} | Quality: ${quality}`);
-    console.log(`   Save: ${saveLocally ? savePath : '→ stream to browser'}`);
+    // — Try each YouTube client in cascade —
+    const isYouTube = /youtube\.com|youtu\.be/i.test(url);
+    const maxAttempts = isYouTube ? YT_CLIENTS.length : 1;
+    let lastStderr = '';
+    let outFile = null;
 
-    const proc = spawn(cmd, args);
-    let stderrBuf = '';
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const { cmd, args } = getYtDlpArgs(ytArgs, url, attempt);
+        const clientName = isYouTube ? YT_CLIENTS[attempt] : 'default';
+        console.log(`▶ Download attempt ${attempt + 1}/${maxAttempts} [${clientName}]`);
 
-    proc.stderr.on('data', d => {
-        const line = d.toString().trim();
-        stderrBuf += line + '\n';
-        console.log('[yt-dlp]', line);
-    });
-
-    proc.on('error', err => {
-        if (!res.headersSent) res.status(500).json({ error: 'Failed to start download: ' + err.message });
-    });
-
-    proc.on('close', code => {
-        if (code !== 0) {
-            if (!res.headersSent) res.status(500).json({
-                error: 'Download failed. The URL may be invalid or the video unavailable.',
-                details: stderrBuf.slice(-600)
+        const success = await new Promise((resolve) => {
+            lastStderr = '';
+            const proc = spawn(cmd, args);
+            proc.stderr.on('data', d => {
+                const line = d.toString().trim();
+                lastStderr += line + '\n';
+                process.stdout.write(`  [yt-dlp] ${line}\n`);
             });
-            return;
-        }
+            proc.on('error', err => { lastStderr += err.message; resolve(false); });
+            proc.on('close', code => {
+                if (code === 0) {
+                    // Find the output file
+                    outFile = findOutputFile(tempId, saveLocally ? savePath.trim() : null, safeTitle);
+                    resolve(!!outFile);
+                } else {
+                    resolve(false);
+                }
+            });
+            // If client disconnects, kill yt-dlp
+            req.on('close', () => { try { proc.kill('SIGTERM'); } catch (_) { } });
+        });
 
-        if (saveLocally) {
-            // Find what file was written
-            const outFile = findOutputFile(
-                '', // use savePath scan
-                savePath.trim(),
-                safeTitle
-            ) || path.join(savePath.trim(), filename);
-            res.json({ success: true, savedTo: outFile, message: `Saved to ${savePath.trim()}` });
-        } else {
-            const outFile = findOutputFile(tempId);
-            streamFileToResponse(outFile, filename, res, req);
+        if (success) {
+            console.log(`✅ Download succeeded [${clientName}]: ${outFile}`);
+            break;
         }
-    });
+        console.warn(`❌ Download failed [${clientName}]`);
+        outFile = null;
+    }
 
-    req.on('close', () => { try { proc.kill('SIGTERM'); } catch (_) { } });
+    if (!outFile) {
+        if (!res.headersSent) {
+            return res.status(500).json({
+                error: 'Download failed. The video may be unavailable, geo-blocked, or rate-limited.',
+                details: lastStderr.slice(-800),
+            });
+        }
+        return;
+    }
+
+    if (saveLocally) {
+        return res.json({ success: true, savedTo: outFile });
+    }
+
+    // Stream file to browser
+    streamFileToResponse(outFile, filename, res, req);
 });
+
+
 
 /* ===========================
    GET /api/default-folder
