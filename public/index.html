@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f0c29" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VidSnap" />
+  <meta name="description" content="Download HD videos from YouTube, Instagram, TikTok, Twitter, Facebook and more." />
+  <title>VidSnap — Social Video Downloader</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-wrap">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="url(#lg1)" />
+            <path d="M9 8l8 4-8 4V8z" fill="white" />
+            <defs>
+              <linearGradient id="lg1" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#a78bfa" />
+                <stop offset="1" stop-color="#ec4899" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-name">VidSnap</span>
+          <span class="logo-tagline">Social Video Downloader</span>
+        </div>
+      </div>
+      <div id="statusBadge" class="status-badge checking">
+        <span class="status-dot"></span>
+        <span class="status-label">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Install App Banner -->
+    <div id="installBanner" class="install-banner hidden">
+      <div class="install-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="5" y="2" width="14" height="20" rx="2" />
+          <path d="M12 10v6m-3-3l3 3 3-3" />
+        </svg>
+      </div>
+      <div class="install-text">
+        <strong>Install VidSnap</strong>
+        <span>Add to home screen for offline access</span>
+      </div>
+      <button id="installBtn" class="install-action-btn">Install</button>
+      <button id="installDismiss" class="install-dismiss">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Platform chips -->
+    <div class="platforms-row">
+      <div class="platforms-scroll">
+        <span class="platform-chip youtube"><svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M23.5 6.5a3 3 0 00-2.1-2.1C19.5 4 12 4 12 4s-7.5 0-9.4.4A3 3 0 00.5 6.5 31 31 0 000 12a31 31 0 00.5 5.5 3 3 0 002.1 2.1C4.5 20 12 20 12 20s7.5 0 9.4-.4a3 3 0 002.1-2.1A31 31 0 0024 12a31 31 0 00-.5-5.5zM9.8 15.5V8.5l6.4 3.5-6.4 3.5z" />
+          </svg>YouTube</span>
+        <span class="platform-chip instagram"><svg viewBox="0 0 24 24" fill="currentColor">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+            <path fill="none" stroke="#fff" stroke-width="2" d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" />
+            <line fill="none" stroke="#fff" stroke-width="2" x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+          </svg>Instagram</span>
+        <span class="platform-chip tiktok"><svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.16 8.16 0 004.77 1.52V6.76a4.85 4.85 0 01-1-.07z" />
+          </svg>TikTok</span>
+        <span class="platform-chip twitter"><svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>Twitter/X</span>
+        <span class="platform-chip facebook"><svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.8-4.7 4.54-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.27h3.32l-.53 3.49h-2.79V24C19.62 23.1 24 18.1 24 12.07z" />
+          </svg>Facebook</span>
+        <span class="platform-chip reddit"><svg viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="10" />
+          </svg>Reddit</span>
+        <span class="platform-chip vimeo"><svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M23.977 6.416c-.105 2.338-1.739 5.543-4.894 9.609-3.268 4.247-6.026 6.37-8.29 6.37-1.409 0-2.578-1.294-3.553-3.881L5.322 11.4C4.603 8.816 3.834 7.522 3.01 7.522c-.179 0-.806.378-1.881 1.132L0 7.197a315.065 315.065 0 003.501-3.128C5.08 2.701 6.266 1.984 7.055 1.91c1.867-.18 3.016 1.1 3.447 3.838.465 2.953.789 4.789.971 5.507.539 2.45 1.131 3.674 1.776 3.674.502 0 1.256-.796 2.265-2.385 1.004-1.589 1.54-2.797 1.612-3.628.144-1.371-.395-2.061-1.612-2.061-.57 0-1.161.13-1.77.396 1.174-3.851 3.425-5.725 6.652-5.609 2.428.083 3.572 1.648 3.581 4.874z" />
+          </svg>Vimeo</span>
+        <span class="platform-chip more">+100 More Sites</span>
+      </div>
+    </div>
+
+    <!-- Main card -->
+    <main class="main-card glass">
+
+      <!-- URL Input -->
+      <section class="input-section">
+        <label class="input-label" for="urlInput">Paste Video Link</label>
+        <div class="input-wrap" id="inputWrap">
+          <div class="input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+            </svg></div>
+          <input type="url" id="urlInput" class="url-input" placeholder="https://youtube.com/watch?v=..."
+            autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+          <button id="pasteBtn" class="paste-btn" title="Paste from clipboard"><svg viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+            </svg></button>
+          <button id="clearBtn" class="clear-btn hidden" title="Clear"><svg viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg></button>
+        </div>
+        <button id="fetchBtn" class="fetch-btn" onclick="fetchVideoInfo()">
+          <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg></span>
+          <span class="btn-text">Analyze Video</span>
+        </button>
+      </section>
+
+      <!-- Loading -->
+      <section id="loadingSection" class="loading-section hidden">
+        <div class="loader-ring">
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        <p class="loading-text">Analyzing video link...</p>
+        <p class="loading-sub">Fetching available qualities</p>
+      </section>
+
+      <!-- Error -->
+      <section id="errorSection" class="error-section hidden">
+        <div class="error-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg></div>
+        <h3 class="error-title">Oops! Something went wrong</h3>
+        <p id="errorMessage" class="error-message"></p>
+        <button class="retry-btn" onclick="resetApp()">Try Again</button>
+      </section>
+
+      <!-- Video Info + Settings -->
+      <section id="videoSection" class="video-section hidden">
+
+        <!-- Thumbnail & meta -->
+        <div class="video-meta">
+          <div class="thumb-wrap">
+            <img id="videoThumb" class="video-thumb" src="" alt="Video thumbnail" />
+            <div class="thumb-overlay">
+              <div class="play-icon"><svg viewBox="0 0 24 24" fill="white">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg></div>
+            </div>
+            <div id="platformBadge" class="platform-badge"></div>
+          </div>
+          <div class="video-info">
+            <h2 id="videoTitle" class="video-title"></h2>
+            <div class="video-stats">
+              <span id="videoUploader" class="stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg><span></span></span>
+              <span id="videoDuration" class="stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg><span></span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================== -->
+        <!-- DOWNLOAD SETTINGS PANEL -->
+        <!-- ======================== -->
+        <div class="dl-settings-wrap">
+
+          <!-- Type Tabs -->
+          <div class="type-tabs">
+            <button id="typeVideo" class="type-tab active" onclick="setType('video')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="16" height="10" rx="2" />
+                <polygon points="22 7 16 12 22 17 22 7" fill="currentColor" stroke="none" />
+              </svg>
+              Video
+            </button>
+            <button id="typeAudio" class="type-tab" onclick="setType('audio')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+              Audio Only
+            </button>
+          </div>
+
+          <!-- Video Settings -->
+          <div id="videoSettings" class="settings-block">
+            <div class="settings-row">
+              <span class="settings-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>Format</span>
+              <div class="format-chips" id="videoFormatChips">
+                <button class="fmt-chip active" data-val="mp4" onclick="setVideoFormat('mp4')">MP4</button>
+                <button class="fmt-chip" data-val="webm" onclick="setVideoFormat('webm')">WebM</button>
+                <button class="fmt-chip" data-val="mkv" onclick="setVideoFormat('mkv')">MKV</button>
+              </div>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>Quality</span>
+              <div class="quality-chips" id="videoQualityChips">
+                <button class="q-chip active" data-val="best" onclick="setVideoQuality('best')">Best</button>
+                <button class="q-chip" data-val="2160" onclick="setVideoQuality('2160')">4K</button>
+                <button class="q-chip" data-val="1080" onclick="setVideoQuality('1080')">1080p</button>
+                <button class="q-chip" data-val="720" onclick="setVideoQuality('720')">720p</button>
+                <button class="q-chip" data-val="480" onclick="setVideoQuality('480')">480p</button>
+                <button class="q-chip" data-val="360" onclick="setVideoQuality('360')">360p</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audio Settings -->
+          <div id="audioSettings" class="settings-block hidden">
+            <div class="settings-row">
+              <span class="settings-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 010 7.07" />
+                </svg>Format</span>
+              <div class="format-chips" id="audioFormatChips">
+                <button class="fmt-chip active" data-val="mp3" onclick="setAudioFormat('mp3')">MP3</button>
+                <button class="fmt-chip" data-val="m4a" onclick="setAudioFormat('m4a')">M4A</button>
+                <button class="fmt-chip" data-val="flac" onclick="setAudioFormat('flac')">FLAC</button>
+                <button class="fmt-chip" data-val="opus" onclick="setAudioFormat('opus')">Opus</button>
+              </div>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="20" x2="12" y2="10" />
+                  <line x1="18" y1="20" x2="18" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="16" />
+                </svg>Quality</span>
+              <div class="quality-chips" id="audioQualityChips">
+                <button class="q-chip active" data-val="0" onclick="setAudioQuality('0')">Best</button>
+                <button class="q-chip" data-val="2" onclick="setAudioQuality('2')">320k</button>
+                <button class="q-chip" data-val="4" onclick="setAudioQuality('4')">192k</button>
+                <button class="q-chip" data-val="5" onclick="setAudioQuality('5')">128k</button>
+                <button class="q-chip" data-val="7" onclick="setAudioQuality('7')">64k</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save Location -->
+          <div class="settings-row save-location-row">
+            <span class="settings-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+              </svg>Save To</span>
+            <div class="save-toggle">
+              <button id="saveBrowser" class="save-tab active" onclick="setSaveMode('browser')">Browser</button>
+              <button id="saveFolder" class="save-tab" onclick="setSaveMode('folder')">Custom Folder</button>
+            </div>
+          </div>
+
+          <!-- Custom folder path (hidden until "Custom Folder" selected) -->
+          <div id="folderPathWrap" class="folder-path-wrap hidden">
+            <div class="folder-input-row">
+              <div class="folder-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                </svg></div>
+              <input type="text" id="folderPathInput" class="folder-input" placeholder="e.g. C:\Users\You\Videos"
+                spellcheck="false" />
+              <button id="validateFolderBtn" class="validate-btn" onclick="validateFolder()"><svg viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg></button>
+            </div>
+            <p id="folderStatus" class="folder-status"></p>
+          </div>
+
+        </div><!-- end dl-settings-wrap -->
+
+        <!-- Download Button -->
+        <button id="downloadBtn" class="download-btn" onclick="startDownload()">
+          <span class="dl-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg></span>
+          <span id="dlBtnText" class="dl-text">Download MP4</span>
+          <span id="dlBtnBadge" class="dl-badge">HD + Audio</span>
+        </button>
+
+        <!-- Progress -->
+        <div id="downloadProgress" class="download-progress hidden">
+          <div class="progress-bar-wrap">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+          <p id="progressLabel" class="progress-label">Preparing download...</p>
+        </div>
+
+        <!-- Reset -->
+        <button class="reset-link" onclick="resetApp()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Download another video
+        </button>
+
+      </section>
+
+    </main>
+
+    <!-- Features strip -->
+    <div class="features-strip">
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg><span>HD Quality</span></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" />
+        </svg><span>With Audio</span></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+          <line x1="12" y1="18" x2="12.01" y2="18" />
+        </svg><span>MP3 / MP4</span></div>
+      <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0110 0v4" />
+        </svg><span>No Watermark</span></div>
+    </div>
+
+    <footer class="footer">
+      <p>VidSnap &copy; 2025 &mdash; For personal use only. Respect copyright laws.</p>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('SW registered'))
+          .catch(err => console.warn('SW failed:', err));
+      });
+    }
+  </script>
+</body>
+
+</html>
