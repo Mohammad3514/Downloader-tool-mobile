@@ -69,11 +69,31 @@ resolveFfmpeg();
 /* ===========================
    Helpers
    =========================== */
-function getYtDlpArgs(extraArgs = []) {
+
+/* Extra flags to bypass YouTube bot-detection on datacenter IPs (Render, etc.) */
+function getYouTubeBypassArgs(url) {
+    const isYouTube = /youtube\.com|youtu\.be/i.test(url || '');
+    if (!isYouTube) return [];
+    return [
+        // Use Android mobile client — far less restricted than web
+        '--extractor-args', 'youtube:player_client=android,web',
+        // Spoof a real Android browser user-agent
+        '--user-agent', 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        // Retries
+        '--retries', '3',
+        '--fragment-retries', '3',
+        '--extractor-retries', '3',
+        // Timeouts
+        '--socket-timeout', '30',
+    ];
+}
+
+function getYtDlpArgs(extraArgs = [], url = '') {
     const ffmpegArgs = (FFMPEG_PATH && FFMPEG_PATH !== 'ffmpeg')
         ? ['--ffmpeg-location', FFMPEG_PATH]
         : [];
-    return { cmd: PYTHON_CMD, args: ['-m', 'yt_dlp', ...ffmpegArgs, ...extraArgs] };
+    const bypassArgs = getYouTubeBypassArgs(url);
+    return { cmd: PYTHON_CMD, args: ['-m', 'yt_dlp', ...ffmpegArgs, ...bypassArgs, ...extraArgs] };
 }
 
 function getPlatformInfo(url) {
@@ -177,7 +197,7 @@ app.get('/api/info', (req, res) => {
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     const platform = getPlatformInfo(url);
-    const { cmd, args } = getYtDlpArgs(['--dump-json', '--no-playlist', url]);
+    const { cmd, args } = getYtDlpArgs(['--dump-json', '--no-playlist', url], url);
 
     let output = '', errOut = '';
     const proc = spawn(cmd, args);
@@ -287,7 +307,7 @@ app.get('/api/download', (req, res) => {
 
     ytArgs.push('-o', finalOutputTemplate, url);
 
-    const { cmd, args } = getYtDlpArgs(ytArgs);
+    const { cmd, args } = getYtDlpArgs(ytArgs, url);
 
     console.log(`\n📥 Download request`);
     console.log(`   URL: ${url}`);
