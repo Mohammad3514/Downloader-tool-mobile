@@ -13,28 +13,54 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ===========================
+   Detect Python command
+   On Windows: 'python', on Linux/Render: 'python3'
+   =========================== */
+let PYTHON_CMD = 'python';
+
+function resolvePython() {
+    // Try 'python' first (Windows, some Linux)
+    try {
+        const v = execSync('python --version', { encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+        if (v) { PYTHON_CMD = 'python'; console.log('✅ python command:', PYTHON_CMD); return; }
+    } catch (_) { }
+    // Fallback to 'python3' (Render, Ubuntu, Mac)
+    try {
+        const v = execSync('python3 --version', { encoding: 'utf8', timeout: 5000, stdio: 'pipe' });
+        if (v) { PYTHON_CMD = 'python3'; console.log('✅ python command:', PYTHON_CMD); return; }
+    } catch (_) { }
+    console.error('❌ Neither python nor python3 found!');
+}
+
+resolvePython();
+
+/* ===========================
    Resolve ffmpeg path
    =========================== */
 let FFMPEG_PATH = null;
 
 function resolveFfmpeg() {
+    // 1. Try system ffmpeg
     try {
         execSync('ffmpeg -version', { stdio: 'ignore' });
         FFMPEG_PATH = 'ffmpeg';
         console.log('✅ ffmpeg found in system PATH');
         return;
     } catch (_) { }
-    try {
-        const result = execSync(
-            'python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"',
-            { encoding: 'utf8', timeout: 8000 }
-        ).trim();
-        if (result && fs.existsSync(result)) {
-            FFMPEG_PATH = result;
-            console.log('✅ ffmpeg via imageio_ffmpeg:', FFMPEG_PATH);
-            return;
-        }
-    } catch (_) { }
+    // 2. Try imageio_ffmpeg Python package
+    for (const pyCmd of [PYTHON_CMD, 'python', 'python3']) {
+        try {
+            const result = execSync(
+                `${pyCmd} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`,
+                { encoding: 'utf8', timeout: 8000 }
+            ).trim();
+            if (result && fs.existsSync(result)) {
+                FFMPEG_PATH = result;
+                console.log('✅ ffmpeg via imageio_ffmpeg:', FFMPEG_PATH);
+                return;
+            }
+        } catch (_) { }
+    }
     console.warn('⚠️  ffmpeg NOT found — audio merging may be limited');
 }
 
@@ -47,7 +73,7 @@ function getYtDlpArgs(extraArgs = []) {
     const ffmpegArgs = (FFMPEG_PATH && FFMPEG_PATH !== 'ffmpeg')
         ? ['--ffmpeg-location', FFMPEG_PATH]
         : [];
-    return { cmd: 'python', args: ['-m', 'yt_dlp', ...ffmpegArgs, ...extraArgs] };
+    return { cmd: PYTHON_CMD, args: ['-m', 'yt_dlp', ...ffmpegArgs, ...extraArgs] };
 }
 
 function getPlatformInfo(url) {
@@ -132,7 +158,7 @@ function streamFileToResponse(filePath, filename, res, req) {
    GET /api/check
    =========================== */
 app.get('/api/check', (req, res) => {
-    exec('python -m yt_dlp --version', { timeout: 8000 }, (err, stdout) => {
+    exec(`${PYTHON_CMD} -m yt_dlp --version`, { timeout: 8000 }, (err, stdout) => {
         if (err) return res.json({ status: 'error', ytdlpInstalled: false, ffmpegFound: false });
         res.json({
             status: 'ok',
