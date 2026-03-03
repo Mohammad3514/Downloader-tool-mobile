@@ -438,24 +438,52 @@ async function startDownload() {
                 throw new Error(data.error || 'Save failed');
             }
         } else {
-            // "Browser download" mode — trigger anchor download
-            const a = document.createElement('a');
+            // "Browser download" mode — fetch as blob so we detect server errors
+            progressLabel.textContent = settings.type === 'audio' ? 'Fetching audio from server...' : 'Fetching video from server...';
+
+            const res = await fetch(downloadUrl);
+            clearInterval(interval);
+
+            // Check for HTTP error
+            if (!res.ok) {
+                let errMsg = `Server error (${res.status})`;
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.error || errMsg;
+                    if (errData.details) console.error('yt-dlp stderr:', errData.details);
+                } catch (_) { }
+                throw new Error(errMsg);
+            }
+
+            // If content-type is JSON it means server sent an error object
+            const contentType = res.headers.get('Content-Type') || '';
+            if (contentType.includes('application/json')) {
+                let errMsg = 'Download failed — server returned an error.';
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.error || errMsg;
+                } catch (_) { }
+                throw new Error(errMsg);
+            }
+
+            // Good — stream to blob and trigger save-as dialog
+            progressBar.style.width = '95%';
+            progressLabel.textContent = 'Preparing file…';
+            const blob = await res.blob();
             const ext = settings.type === 'audio' ? settings.audioFormat : settings.videoFormat;
-            a.href = downloadUrl;
-            a.download = (videoData.title.replace(/[^\w\s\-]/g, '').trim().slice(0, 60) || 'video') + '.' + ext;
+            const safeTitle = (videoData.title.replace(/[^\w\s\-]/g, '').trim().slice(0, 60) || 'video');
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `${safeTitle}.${ext}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 
-            // Show completion after a delay (actual download is handled by browser)
-            setTimeout(() => {
-                clearInterval(interval);
-                progressBar.style.width = '100%';
-                progressLabel.textContent = '✅ Download started — check your browser downloads!';
-                showToast('🎉 Download started!', 'success', 4000);
-                dlBtn.disabled = false;
-            }, 2500);
-            return;
+            progressBar.style.width = '100%';
+            progressLabel.textContent = '✅ Download started — check your browser downloads!';
+            showToast('🎉 Download started!', 'success', 4000);
         }
     } catch (err) {
         clearInterval(interval);

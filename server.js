@@ -76,25 +76,38 @@ resolveFfmpeg();
   Order matters — try most-permissive first.
 */
 const YT_CLIENTS = [
-    'tv_embedded',   // Smart TV embedded — no PO token needed, reliable
-    'web_creator',   // YouTube Studio client — usually not rate-limited
-    'mweb',          // mobile web — less restricted than desktop web
-    'web_embedded',  // embedded player client
-    'android_vr',    // VR Android client — different quota bucket
+    'tv_embedded',      // Smart TV embedded — no PO token needed, very reliable
+    'android',          // Android app client — different quota / less restricted
+    'ios',              // iOS app client — usually unblocked on datacenter IPs
+    'web_creator',      // YouTube Studio client — usually not rate-limited
+    'mweb',             // mobile web — less restricted than desktop web
+    'web_embedded',     // embedded player client
+    'android_vr',       // VR Android client — different quota bucket
+    'android_testsuite',// test client — rarely rate-limited
 ];
+
+// Optional: path to a cookies.txt file (Netscape format) exported from a browser.
+// Set the env var YT_COOKIES_FILE=/path/to/cookies.txt on your server to enable.
+const YT_COOKIES_FILE = process.env.YT_COOKIES_FILE || null;
 
 function getYouTubeBypassArgs(url, clientIndex = 0) {
     const isYouTube = /youtube\.com|youtu\.be/i.test(url || '');
     if (!isYouTube) return [];
     const client = YT_CLIENTS[clientIndex] || YT_CLIENTS[0];
-    return [
+    const args = [
         '--extractor-args', `youtube:player_client=${client}`,
         '--no-check-certificates',
-        '--retries', '2',
-        '--extractor-retries', '2',
+        '--retries', '3',
+        '--extractor-retries', '3',
         '--socket-timeout', '30',
         '--ignore-no-formats-error',
+        '--geo-bypass',
     ];
+    // Attach cookies file if provided — helps bypass bot-detection for age-restricted/signed content
+    if (YT_COOKIES_FILE && fs.existsSync(YT_COOKIES_FILE)) {
+        args.push('--cookies', YT_COOKIES_FILE);
+    }
+    return args;
 }
 
 function getYtDlpArgs(extraArgs = [], url = '', clientIndex = 0) {
