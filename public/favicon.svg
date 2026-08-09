@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="vidsnapGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="235" fill="url(#vidsnapGrad)"/>
+  <polygon points="194.56,168.96 363.52,256 194.56,343.04" fill="#ffffff"/>
+</svg>
