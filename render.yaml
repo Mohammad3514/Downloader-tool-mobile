@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: vidsnap
+    name: vidsnapai-2ptc
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free

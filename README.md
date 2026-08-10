@@ -17,6 +17,7 @@ node server.js
 ```
 
 ### 3. Open in browser
+- **Live Web:** [https://vidsnapai-2ptc.onrender.com/](https://vidsnapai-2ptc.onrender.com/)
 - **Desktop:** http://localhost:3001
 - **Mobile (same WiFi):** http://YOUR-PC-IP:3001
 
