@@ -4,8 +4,8 @@ Allow: /
 
 # Block API routes from search indexing
 Disallow: /api/
-Disallow: /download
-Disallow: /stream
+Disallow: /download/
+Disallow: /stream/
 
 # Sitemap Location
 Sitemap: https://vidsnapai-2ptc.onrender.com/sitemap.xml
