@@ -8,4 +8,4 @@ Disallow: /download
 Disallow: /stream
 
 # Sitemap Location
-Sitemap: https://vidsnap.onrender.com/sitemap.xml
+Sitemap: https://vidsnapai-2ptc.onrender.com/sitemap.xml
